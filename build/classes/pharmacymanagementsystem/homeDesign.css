@@ -1,0 +1,118 @@
+/*
+ * Empty Stylesheet file.
+ */
+
+.left-form{
+    -fx-background-color: #333856;
+}
+
+.right-form{
+    -fx-background-color: #fff;
+}
+
+.nav-btn{   
+    -fx-background-color: transparent;
+    -fx-text-fill: #c2cce5;
+    -fx-cursor: hand;
+    -fx-background-radius: 0; 
+}
+
+.logout-btn{
+    -fx-cursor: hand;
+    -fx-background-color: transparent;
+}
+
+.minimize{
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+}
+
+.close{
+    -fx-background-color: transparent;
+    -fx-cursor: hand;
+}
+
+.shadow{
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,.5),5,0,0,0);
+}
+
+.white-bg{
+    -fx-background-color: #fff;
+    -fx-background-radius: 8px;
+}
+
+.textfield{
+    -fx-border-color: #333856;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+}
+
+.search{
+    -fx-background-color: transparent;
+    -fx-border-color: #333856;
+    -fx-border-width: 1px;
+    -fx-border-radius: 4px;
+    -fx-padding: 0px 0px 0px 28px;
+    -fx-font-family: "Tahoma";
+}
+
+.tableview{
+    -fx-background-color: transparent;
+    -fx-padding: -1px;
+    -fx-border-color: #333856;
+    -fx-border-width: 2px;
+    -fx-border-radius: 8px;
+}
+
+.tableview .table-column{
+    -fx-alignment: center;
+}
+
+.tableview .column-header-background{
+    -fx-background-color: #333856;
+    -fx-background-radius: 8px 8px 0px 0px;
+    -fx-background-insets: 0 0 0 0;
+}
+
+.tableview .column-header, .filter{
+    -fx-background-color: transparent;
+    -fx-size: 40px;
+}
+
+.tableview .column-header .label{
+    -fx-text-fill: #fff;
+    -fx-font-family: "Arial";
+}
+
+.add-btn{
+    -fx-background-color: transparent;
+    -fx-border-color: #c85f77;
+    -fx-border-width: 1px;
+    -fx-border-radius: 5px;
+    -fx-text-fill: #f0483e;
+    -fx-cursor: hand;
+}
+
+.update-btn{
+    -fx-background-color: #c85f77;
+    -fx-border-radius: 5px;
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+}
+
+.delete-btn{
+    -fx-background-color: #f0483e;
+    -fx-border-radius: 5px;
+    -fx-text-fill: #fff;    
+    -fx-cursor: hand;
+}
+
+.clear-btn{
+    -fx-background-color: #333856;
+    -fx-text-fill: #fff;
+    -fx-cursor: hand;
+}
+
+.clear-btn:hover{
+    -fx-text-fill: #c85f77;
+}
