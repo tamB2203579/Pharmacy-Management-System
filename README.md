@@ -22,4 +22,8 @@ The Pharmacy Management System is a comprehensive application designed to stream
 2. Database Setup:
 - Ensure you have MySQL installed and running.
 - Create a database named pharmacy.
-- Import the provided **pharmacy.sql** file to set up the necessary tables.
+- Import the provided `pharmacy.sql` file to set up the necessary tables.
+3. Configure database connection: Update the database connection settings in the `database.java` file to match your MySQL credentials.
+4. Build and Run the Application: Use IntelliJ IDE to build and run the project.
+# Usage
+Upon launching the application, you will be prompted to log in. After authentication, you can access various modules to manage inventory, process sales, and generate reports.
