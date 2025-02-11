@@ -8,7 +8,7 @@ The Pharmacy Management System is a comprehensive application designed to stream
 - **Reporting**: Generate comprehensive reports on sales, inventory status, and other critical metrics to aid decision-making.
 
 ## Technologies Used
-- Frontend: JavaFX
+- Frontend: JavaFX with SceneBuilder
 - Backend: Java
 - Database: MySQL
 - Build tool: Maven
