@@ -68,4 +68,4 @@ VALUES
     ('A09', 'Cozaar', 'Losartan', 650, 320, 'Available'),
     ('A10', 'Salbutamol', 'Albuterol', 0, 650, 'Not Available');
 
-SET SQL_SAFE_UPDATES = 0; /*Chay cai nay trong MySql truoc roi moi chay app*/
+SET SQL_SAFE_UPDATES = 0; /*Run this command in MySQL before build and run the application*/
