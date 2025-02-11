@@ -24,7 +24,7 @@ The Pharmacy Management System is a comprehensive application designed to stream
 - Create a database named pharmacy.
 - Import the provided `pharmacy.sql` file to set up the necessary tables.
 3. **Configure database connection**: Update the database connection settings in the `database.java` file to match your MySQL credentials.
-4. **Packages Setup**: Intergrate `fontawesomefx-8.2.jar` and `mysql-connector-java-5.1.48.jar` files to your project library.
+4. **Packages Setup**: Intergrate `fontawesomefx-8.2.jar` and `mysql-connector-java-5.1.48.jar` files in `dist` folder to your project library.
 4. **Build and Run the Application**: Use IntelliJ IDE to build and run the project.
 # Usage
 Upon launching the application, you will be prompted to log in. After authentication, you can access various modules to manage inventory, process sales, and generate reports.
