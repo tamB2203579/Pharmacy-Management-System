@@ -8,16 +8,20 @@ import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.chart.AreaChart;
-import javafx.scene.chart.XYChart;
+import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.stage.Modality;
+import javafx.util.Callback;
 
 import java.net.URL;
+import java.text.DecimalFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.sql.*;
 import java.util.Date;
@@ -33,13 +37,25 @@ public class HomeController implements Initializable {
     private AnchorPane dashboard_form;
 
     @FXML
-    private AreaChart<?, ?> dashboard_chart;
+    private AreaChart<String, Number> dashboard_chart;
 
     @FXML
     private Label dashboard_customer;
 
     @FXML
     private Label dashboard_income;
+
+    @FXML
+    private Label dashboard_today_sales;
+
+    @FXML
+    private DatePicker startDatePicker;
+
+    @FXML
+    private DatePicker endDatePicker;
+
+    @FXML
+    private ComboBox<String> revenueFilterComboBox;
 
     @FXML
     private AnchorPane addMedicines_form;
@@ -64,6 +80,15 @@ public class HomeController implements Initializable {
 
     @FXML
     private TextField addMedicines_search;
+
+    @FXML
+    private ComboBox<String> filterCategory_comboBox;
+
+    @FXML
+    private ComboBox<String> filterStatus_comboBox;
+
+    @FXML
+    private Button clearFilter_btn;
 
     @FXML
     private TableView<medicineData> addMedicines_tableView;
@@ -145,6 +170,9 @@ public class HomeController implements Initializable {
 
     @FXML
     private TableColumn<historyData, String> history_col_date;
+
+    @FXML
+    private TableColumn<historyData, Void> history_col_action;
 
     @FXML
     private AnchorPane purchase_form;
@@ -233,6 +261,18 @@ public class HomeController implements Initializable {
     @FXML
     private Button logout;
 
+    @FXML
+    private Button addMedicines_updateBtn;
+
+    @FXML
+    private Button addMedicines_deleteBtn;
+
+    @FXML
+    private Button customer_updateBtn;
+
+    @FXML
+    private Button customer_deleteBtn;
+
     private Connection connect;
     private PreparedStatement prepare;
     private Statement statement;
@@ -240,29 +280,47 @@ public class HomeController implements Initializable {
 
     private double x = 0;
     private double y = 0;
+    
+    // State management for purchase process
+    private boolean purchaseInProgress = false;
+    
+    // Validation methods
+    private boolean isValidPositiveInteger(String value) {
+        try {
+            int num = Integer.parseInt(value);
+            return num >= 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+    
+    private boolean isValidPositiveDouble(String value) {
+        try {
+            double num = Double.parseDouble(value);
+            return num >= 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+    
+    private boolean isValidPhoneNumber(String phoneNumber) {
+        return phoneNumber != null && phoneNumber.replaceAll("\\s", "").length() == 10 && phoneNumber.matches("\\d+");
+    }
+    
+    // Enable/disable buttons based on selection
+    private void updateButtonStates() {
+        boolean medicineSelected = addMedicines_tableView.getSelectionModel().getSelectedItem() != null;
+        boolean customerSelected = customer_tableView.getSelectionModel().getSelectedItem() != null;
+        
+        if (addMedicines_updateBtn != null) addMedicines_updateBtn.setDisable(!medicineSelected);
+        if (addMedicines_deleteBtn != null) addMedicines_deleteBtn.setDisable(!medicineSelected);
+        if (customer_updateBtn != null) customer_updateBtn.setDisable(!customerSelected);
+        if (customer_deleteBtn != null) customer_deleteBtn.setDisable(!customerSelected);
+    }
 
     public void homeChart(){
-        dashboard_chart.getData().clear();
-
-        String sql = "SELECT createdDate, SUM(total) FROM history"
-                + " GROUP BY createdDate ORDER BY TIMESTAMP(createdDate) ASC LIMIT 9";
-
-        connect = database.connectDb();
-
-        try{
-            XYChart.Series chart = new XYChart.Series();
-
-            prepare = connect.prepareStatement(sql);
-            result = prepare.executeQuery();
-
-            while(result.next()){
-                chart.getData().add(new XYChart.Data(result.getString(1), result.getInt(2)));
-            }
-
-            dashboard_chart.getData().add(chart);
-
-        }catch(Exception e){e.printStackTrace();}
-
+        // Use default monthly view
+        updateRevenueChart("Monthly", null, null);
     }
 
     public void homeTC(){
@@ -307,6 +365,210 @@ public class HomeController implements Initializable {
         }
     }
 
+    // Initialize revenue filter ComboBox
+    public void initializeRevenueFilter(){
+        ObservableList<String> filterOptions = FXCollections.observableArrayList("Weekly", "Monthly", "Yearly");
+        revenueFilterComboBox.setItems(filterOptions);
+        revenueFilterComboBox.setValue("Monthly"); // Default selection
+    }
+
+    // Initialize medicine filter ComboBoxes
+    public void initializeMedicineFilters(){
+        // Skip initialization if components are not ready
+        if (filterCategory_comboBox == null || filterStatus_comboBox == null) {
+            System.err.println("Filter ComboBoxes not initialized yet");
+            return;
+        }
+        
+        // Initialize Category filter
+        ObservableList<String> categoryList = FXCollections.observableArrayList();
+        categoryList.add("All Categories"); // Add "All" option
+        
+        String sql = "SELECT DISTINCT category FROM medicine ORDER BY category";
+        
+        Connection localConnect = null;
+        PreparedStatement localPrepare = null;
+        ResultSet localResult = null;
+        
+        try {
+            localConnect = database.connectDb();
+            if (localConnect != null) {
+                localPrepare = localConnect.prepareStatement(sql);
+                localResult = localPrepare.executeQuery();
+                
+                while (localResult.next()) {
+                    String category = localResult.getString("category");
+                    if (category != null && !category.trim().isEmpty()) {
+                        categoryList.add(category);
+                    }
+                }
+            } else {
+                System.err.println("Database connection failed - using default categories");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("Error loading categories: " + e.getMessage());
+        } finally {
+            // Clean up resources
+            try {
+                if (localResult != null) localResult.close();
+                if (localPrepare != null) localPrepare.close();
+                if (localConnect != null) localConnect.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        
+        filterCategory_comboBox.setItems(categoryList);
+        filterCategory_comboBox.setValue("All Categories"); // Default selection
+        
+        // Initialize Status filter
+        ObservableList<String> statusList = FXCollections.observableArrayList();
+        statusList.add("All Status"); // Add "All" option
+        statusList.add("Available");
+        statusList.add("Not Available");
+        
+        filterStatus_comboBox.setItems(statusList);
+        filterStatus_comboBox.setValue("All Status"); // Default selection
+    }
+
+    // Handle ComboBox selection change
+    @FXML
+    public void onRevenueFilterChanged(){
+        String selectedPeriod = revenueFilterComboBox.getValue();
+        System.out.println("Filter changed to: " + selectedPeriod); // Debug line
+        if(selectedPeriod != null){
+            updateRevenueChart(selectedPeriod, null, null);
+        }
+    }
+
+    // Handle Apply button for date range filtering
+    @FXML
+    public void onApplyRevenueFilter(){
+        LocalDate startDate = startDatePicker.getValue();
+        LocalDate endDate = endDatePicker.getValue();
+        
+        if(startDate != null && endDate != null){
+            if(startDate.isAfter(endDate)){
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Invalid Date Range");
+                alert.setHeaderText(null);
+                alert.setContentText("Start date cannot be after end date");
+                alert.showAndWait();
+                return;
+            }
+            updateRevenueChart("Custom", startDate, endDate);
+        } else {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Missing Dates");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select both start and end dates");
+            alert.showAndWait();
+        }
+    }
+
+    public void updateRevenueChart(String period, LocalDate startDate, LocalDate endDate){
+        System.out.println("Updating chart for period: " + period); // Debug
+        dashboard_chart.getData().clear();
+
+        String sql = "";
+
+        switch (period) {
+            case "Weekly":
+                sql = "SELECT DATE(createdDate) AS period, SUM(total) AS revenue " +
+                    "FROM history " +
+                    "WHERE createdDate >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) " +
+                    "AND createdDate <= CURDATE() " +
+                    "GROUP BY DATE(createdDate) " +
+                    "ORDER BY DATE(createdDate) ASC";
+                break;
+
+            case "Monthly":
+                sql = "SELECT DATE(createdDate) AS period, SUM(total) AS revenue " +
+                    "FROM history " +
+                    "WHERE createdDate >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) " +
+                    "AND createdDate <= CURDATE() " +
+                    "GROUP BY DATE(createdDate) " +
+                    "ORDER BY DATE(createdDate) ASC";
+                break;
+
+            case "Yearly":
+                sql = "SELECT DATE(createdDate) AS period, SUM(total) AS revenue " +
+                    "FROM history " +
+                    "WHERE createdDate >= DATE_SUB(CURDATE(), INTERVAL 365 DAY) " +
+                    "AND createdDate <= CURDATE() " +
+                    "GROUP BY DATE(createdDate) " +
+                    "ORDER BY DATE(createdDate) ASC";
+                break;
+
+            case "Custom":
+                if (startDate != null && endDate != null) {
+                    sql = "SELECT DATE(createdDate) AS period, SUM(total) AS revenue " +
+                        "FROM history " +
+                        "WHERE createdDate BETWEEN ? AND ? " +
+                        "GROUP BY DATE(createdDate) " +
+                        "ORDER BY DATE(createdDate) ASC";
+                }
+                break;
+        }
+
+        connect = database.connectDb();
+
+        try {
+            XYChart.Series<String, Number> chart = new XYChart.Series<>();
+            chart.setName("Revenue");
+
+            prepare = connect.prepareStatement(sql);
+
+            // Set parameters for custom date range
+            if (period.equals("Custom") && startDate != null && endDate != null) {
+                prepare.setString(1, startDate.toString());
+                prepare.setString(2, endDate.toString());
+            }
+
+            result = prepare.executeQuery();
+
+            double totalRevenue = 0;
+            int dataCount = 0;
+
+            System.out.println("=== Query Results for " + period + " ===");
+
+            while (result.next()) {
+                String periodLabel = result.getString("period"); // e.g. 2025-08-01
+                double revenue = result.getDouble("revenue");
+                totalRevenue += revenue;
+                dataCount++;
+
+                String formattedLabel = periodLabel; // ← No formatting, use full date string
+
+                System.out.println("Formatted label: " + formattedLabel + ", Revenue: " + revenue);
+                chart.getData().add(new XYChart.Data<>(formattedLabel, revenue));
+            }
+
+            if (dataCount == 0) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("No Data");
+                alert.setHeaderText(null);
+                alert.setContentText("No revenue data found for the selected period.");
+                alert.showAndWait();
+            }
+
+            dashboard_chart.getData().add(chart);
+
+            // Update total revenue label
+            DecimalFormat df = new DecimalFormat("#,##0");
+            dashboard_income.setText(df.format(totalRevenue) + " VND");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Database Error");
+            alert.setHeaderText(null);
+            alert.setContentText("Error loading revenue data: " + e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
     @FXML
     void addMedicineAdd() {
         String sql = "INSERT INTO medicine (medicine_id, productName, category, quantity, price, status) "
@@ -329,6 +591,25 @@ public class HomeController implements Initializable {
                 alert.setContentText("Please fill all blank fields");
                 alert.showAndWait();
             } else{
+                // Validate numeric fields
+                if (!isValidPositiveInteger(addMedicines_quantity.getText())) {
+                    alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error Message");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Quantity must be a non-negative number");
+                    alert.showAndWait();
+                    return;
+                }
+                
+                if (!isValidPositiveDouble(addMedicines_price.getText())) {
+                    alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error Message");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Price must be a non-negative number");
+                    alert.showAndWait();
+                    return;
+                }
+                
                 // CHECK IF THE MEDICINE ID YOU WANT TO INSERT EXIST
                 String checkData = "SELECT medicine_id FROM medicine WHERE medicine_id = '"
                         + addMedicines_medicineID.getText() + "'";
@@ -343,13 +624,16 @@ public class HomeController implements Initializable {
                     alert.setContentText("Medicine ID: " + addMedicines_medicineID.getText() + " was already exist!");
                     alert.showAndWait();
                 } else {
+                    int quantity = Integer.parseInt(addMedicines_quantity.getText());
+                    String autoStatus = quantity > 0 ? "Available" : "Not Available";
+                    
                     prepare = connect.prepareStatement(sql);
                     prepare.setString(1, addMedicines_medicineID.getText());
                     prepare.setString(2, addMedicines_productName.getText());
                     prepare.setString(3, (String) addMedicines_category.getSelectionModel().getSelectedItem());
                     prepare.setString(4, addMedicines_quantity.getText());
                     prepare.setString(5, addMedicines_price.getText());
-                    prepare.setString(6, (String) addMedicines_status.getSelectionModel().getSelectedItem());
+                    prepare.setString(6, autoStatus);
 
                     prepare.executeUpdate();
 
@@ -382,14 +666,32 @@ public class HomeController implements Initializable {
                     || addMedicines_productName.getText().isEmpty()
                     || addMedicines_category.getSelectionModel().getSelectedItem() == null
                     || addMedicines_quantity.getText().isEmpty()
-                    || addMedicines_price.getText().isEmpty()
-                    || addMedicines_status.getSelectionModel().getSelectedItem() == null) {
+                    || addMedicines_price.getText().isEmpty()) {
                 alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Error Message");
                 alert.setHeaderText(null);
-                alert.setContentText("Please fill all blank fields");
+                alert.setContentText("Please fill all blank fields and select a medicine to update");
                 alert.showAndWait();
             } else {
+                // Validate numeric fields
+                if (!isValidPositiveInteger(addMedicines_quantity.getText())) {
+                    alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error Message");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Quantity must be a non-negative number");
+                    alert.showAndWait();
+                    return;
+                }
+                
+                if (!isValidPositiveDouble(addMedicines_price.getText())) {
+                    alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error Message");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Price must be a non-negative number");
+                    alert.showAndWait();
+                    return;
+                }
+                
                 alert = new Alert(Alert.AlertType.CONFIRMATION);
                 alert.setTitle("Confirmation Message");
                 alert.setHeaderText(null);
@@ -397,12 +699,15 @@ public class HomeController implements Initializable {
                 Optional<ButtonType> option = alert.showAndWait();
 
                 if (option.get().equals(ButtonType.OK)) {
+                    int quantity = Integer.parseInt(addMedicines_quantity.getText());
+                    String autoStatus = quantity > 0 ? "Available" : "Not Available";
+                    
                     prepare = connect.prepareStatement(sql);
                     prepare.setString(1, addMedicines_productName.getText());
                     prepare.setString(2, (String) addMedicines_category.getSelectionModel().getSelectedItem());
                     prepare.setString(3, addMedicines_quantity.getText());
                     prepare.setString(4, addMedicines_price.getText());
-                    prepare.setString(5, (String) addMedicines_status.getSelectionModel().getSelectedItem());
+                    prepare.setString(5, autoStatus);
                     prepare.setString(6, addMedicines_medicineID.getText());
 
                     prepare.executeUpdate();
@@ -541,40 +846,146 @@ public class HomeController implements Initializable {
 
     @FXML
     void addMedicineSearch() {
-        String sql = "SELECT * FROM medicine WHERE medicine_id LIKE ? or productName LIKE ? or category LIKE ? or price LIKE ? or status LIKE ?";
+        applyFilters();
+    }
 
-        connect = database.connectDb();
+    @FXML
+    void filterByCategory() {
+        if (filterCategory_comboBox != null && addMedicines_tableView != null) {
+            applyFilters();
+        }
+    }
 
+    @FXML
+    void filterByStatus() {
+        if (filterStatus_comboBox != null && addMedicines_tableView != null) {
+            applyFilters();
+        }
+    }
+
+    @FXML
+    void clearFilters() {
+        // Reset all filters to default values
+        if (filterCategory_comboBox != null) {
+            filterCategory_comboBox.setValue("All Categories");
+        }
+        if (filterStatus_comboBox != null) {
+            filterStatus_comboBox.setValue("All Status");
+        }
+        if (addMedicines_search != null) {
+            addMedicines_search.clear();
+        }
+        
+        // Show all medicines
+        addMedicineShowListData();
+    }
+
+    private void applyFilters() {
+        // Debug: Check if components are properly initialized
+        if (addMedicines_tableView == null) {
+            System.err.println("TableView is null - cannot apply filters");
+            return;
+        }
+        
+        String searchText = addMedicines_search != null ? addMedicines_search.getText() : "";
+        String selectedCategory = filterCategory_comboBox != null ? filterCategory_comboBox.getValue() : "All Categories";
+        String selectedStatus = filterStatus_comboBox != null ? filterStatus_comboBox.getValue() : "All Status";
+        
+        // If no filters are applied, show all data
+        if ((searchText == null || searchText.trim().isEmpty()) && 
+            (selectedCategory == null || selectedCategory.equals("All Categories")) &&
+            (selectedStatus == null || selectedStatus.equals("All Status"))) {
+            addMedicineShowListData();
+            return;
+        }
+        
+        // Build SQL query based on filters
+        StringBuilder sql = new StringBuilder("SELECT * FROM medicine WHERE 1=1");
+        
+        // Add search filter
+        if (searchText != null && !searchText.trim().isEmpty()) {
+            sql.append(" AND (medicine_id LIKE ? OR productName LIKE ? OR category LIKE ? OR price LIKE ? OR status LIKE ?)");
+        }
+        
+        // Add category filter
+        if (selectedCategory != null && !selectedCategory.equals("All Categories")) {
+            sql.append(" AND category = ?");
+        }
+        
+        // Add status filter
+        if (selectedStatus != null && !selectedStatus.equals("All Status")) {
+            sql.append(" AND status = ?");
+        }
+        
+        Connection localConnect = null;
+        PreparedStatement localPrepare = null;
+        ResultSet localResult = null;
+        
         try {
-            prepare = connect.prepareStatement(sql);
-
-            prepare.setString(1, "%" + addMedicines_search.getText() + "%");
-            prepare.setString(2, "%" + addMedicines_search.getText() + "%");
-            prepare.setString(3, "%" + addMedicines_search.getText() + "%");
-            prepare.setString(4, "%" + addMedicines_search.getText() + "%");
-            prepare.setString(5, "%" + addMedicines_search.getText() + "%");
-
-            result = prepare.executeQuery();
-
-            ObservableList<medicineData> listData = FXCollections.observableArrayList();
-
-            medicineData medData;
-
-            while (result.next()) {
-                medData = new medicineData(result.getString("medicine_id"),
-                        result.getString("productName"),
-                        result.getString("category"),
-                        result.getInt("quantity"),
-                        result.getInt("price"),
-                        result.getString("status"));
-
-                listData.add(medData);
+            // Use local connection to avoid conflicts
+            localConnect = database.connectDb();
+            if (localConnect == null) {
+                System.err.println("Database connection failed - showing all data instead");
+                addMedicineShowListData();
+                return;
             }
-
-            addMedicines_tableView.setItems(listData);
-
+            
+            localPrepare = localConnect.prepareStatement(sql.toString());
+            
+            int paramIndex = 1;
+            
+            // Set search parameters
+            if (searchText != null && !searchText.trim().isEmpty()) {
+                String searchPattern = "%" + searchText + "%";
+                localPrepare.setString(paramIndex++, searchPattern);
+                localPrepare.setString(paramIndex++, searchPattern);
+                localPrepare.setString(paramIndex++, searchPattern);
+                localPrepare.setString(paramIndex++, searchPattern);
+                localPrepare.setString(paramIndex++, searchPattern);
+            }
+            
+            // Set category parameter
+            if (selectedCategory != null && !selectedCategory.equals("All Categories")) {
+                localPrepare.setString(paramIndex++, selectedCategory);
+            }
+            
+            // Set status parameter
+            if (selectedStatus != null && !selectedStatus.equals("All Status")) {
+                localPrepare.setString(paramIndex++, selectedStatus);
+            }
+            
+            localResult = localPrepare.executeQuery();
+            
+            ObservableList<medicineData> filteredList = FXCollections.observableArrayList();
+            
+            while (localResult.next()) {
+                medicineData medData = new medicineData(
+                    localResult.getString("medicine_id"),
+                    localResult.getString("productName"),
+                    localResult.getString("category"),
+                    localResult.getInt("quantity"),
+                    localResult.getInt("price"),
+                    localResult.getString("status")
+                );
+                filteredList.add(medData);
+            }
+            
+            addMedicines_tableView.setItems(filteredList);
+            
         } catch (Exception e) {
             e.printStackTrace();
+            System.err.println("Error applying filters: " + e.getMessage());
+            // Fallback to showing all data
+            addMedicineShowListData();
+        } finally {
+            // Clean up local resources
+            try {
+                if (localResult != null) localResult.close();
+                if (localPrepare != null) localPrepare.close();
+                if (localConnect != null) localConnect.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -591,6 +1002,8 @@ public class HomeController implements Initializable {
         addMedicines_productName.setText(medData.getProductName());
         addMedicines_quantity.setText(String.valueOf(medData.getQuantity()));
         addMedicines_price.setText(String.valueOf(medData.getPrice()));
+        
+        updateButtonStates();
     }
 
     public ObservableList<customerData> customerListData() {
@@ -647,6 +1060,8 @@ public class HomeController implements Initializable {
         customerFullName.setText(cusData.getFullName());
         customerPhoneNumber.setText(cusData.getPhoneNumber());
         customerPoints.setText(String.valueOf(cusData.getLoyaltyPoints()));
+        
+        updateButtonStates();
     }
 
     public void customerAdd(){
@@ -663,6 +1078,12 @@ public class HomeController implements Initializable {
                 alert.setTitle("Error Message");
                 alert.setHeaderText(null);
                 alert.setContentText("Please fill all the blank fields");
+                alert.showAndWait();
+            } else if (!isValidPhoneNumber(customerPhoneNumber.getText())) {
+                alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error Message");
+                alert.setHeaderText(null);
+                alert.setContentText("Phone number must be exactly 10 digits");
                 alert.showAndWait();
             } else {
                 String checkData = "SELECT * FROM Customer WHERE phoneNum = '" + customerPhoneNumber.getText() + "'";
@@ -732,6 +1153,12 @@ public class HomeController implements Initializable {
                 alert.setTitle("Error Message");
                 alert.setHeaderText(null);
                 alert.setContentText("Please fill all the blank fields");
+                alert.showAndWait();
+            } else if (!isValidPhoneNumber(customerPhoneNumber.getText())) {
+                alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error Message");
+                alert.setHeaderText(null);
+                alert.setContentText("Phone number must be exactly 10 digits");
                 alert.showAndWait();
             } else {
                 alert = new Alert(Alert.AlertType.CONFIRMATION);
@@ -1074,6 +1501,38 @@ public class HomeController implements Initializable {
         history_col_total.setCellValueFactory(new PropertyValueFactory<>("total"));
         history_col_date.setCellValueFactory(new PropertyValueFactory<>("createdDate"));
 
+        // Add action column with "View Details" button
+        Callback<TableColumn<historyData, Void>, TableCell<historyData, Void>> cellFactory = new Callback<TableColumn<historyData, Void>, TableCell<historyData, Void>>() {
+            @Override
+            public TableCell<historyData, Void> call(final TableColumn<historyData, Void> param) {
+                final TableCell<historyData, Void> cell = new TableCell<historyData, Void>() {
+                    
+                    private final Button btn = new Button("View Details");
+                    
+                    {
+                        btn.setStyle("-fx-background-color: #c85f77; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 10px;");
+                        btn.setOnAction((ActionEvent event) -> {
+                            historyData data = getTableView().getItems().get(getIndex());
+                            showInvoiceDetails(data);
+                        });
+                    }
+                    
+                    @Override
+                    public void updateItem(Void item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty) {
+                            setGraphic(null);
+                        } else {
+                            setGraphic(btn);
+                        }
+                    }
+                };
+                return cell;
+            }
+        };
+        
+        history_col_action.setCellFactory(cellFactory);
+
         history_tableView.setItems(historyList);
     }
 
@@ -1087,6 +1546,31 @@ public class HomeController implements Initializable {
         }
 
         historyId = hisData.getId();
+    }
+
+    public void showInvoiceDetails(historyData historyData) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("invoiceDetail.fxml"));
+            Parent root = loader.load();
+            
+            InvoiceDetailController controller = loader.getController();
+            controller.setInvoiceData(historyData);
+            
+            Stage stage = new Stage();
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.setTitle("Invoice Details - ID: " + historyData.getId());
+            stage.setScene(new Scene(root));
+            stage.setResizable(false);
+            stage.showAndWait();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText(null);
+            alert.setContentText("Failed to load invoice details: " + e.getMessage());
+            alert.showAndWait();
+        }
     }
 
     public void historySearch(){
@@ -1172,11 +1656,23 @@ public class HomeController implements Initializable {
 
         String sql = "INSERT INTO purchase (customer_id, medicine_id, productName, category, quantity, price)"
                 + " VALUES(?,?,?,?,?,?)";
+        
+        String updateSql = "UPDATE purchase SET quantity = quantity + ?, price = price + ? WHERE customer_id = ? AND medicine_id = ?";
+        String checkExistingSql = "SELECT quantity, price FROM purchase WHERE customer_id = ? AND medicine_id = ?";
 
         connect = database.connectDb();
 
         try{
             Alert alert;
+
+            if(customerId == 0) {
+                alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error message");
+                alert.setHeaderText(null);
+                alert.setContentText("Please select a customer first");
+                alert.showAndWait();
+                return;
+            }
 
             if(purchase_category.getSelectionModel().getSelectedItem() == null ||
                     purchase_productName.getSelectionModel().getSelectedItem() == null ||
@@ -1187,9 +1683,27 @@ public class HomeController implements Initializable {
                 alert.setHeaderText(null);
                 alert.setContentText("Please fill all blank fields");
                 alert.showAndWait();
-            }else{
+            } else {
+                // Validate quantity input
+                if (!isValidPositiveInteger(purchase_quantity.getText())) {
+                    alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error message");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Quantity must be a positive number");
+                    alert.showAndWait();
+                    return;
+                }
 
                 int quantity = Integer.parseInt(purchase_quantity.getText());
+                
+                if (quantity <= 0) {
+                    alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error message");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Quantity must be greater than 0");
+                    alert.showAndWait();
+                    return;
+                }
 
                 String checkStock = "SELECT quantity FROM medicine WHERE medicine_id = '"
                         + purchase_medID.getSelectionModel().getSelectedItem() + "'";
@@ -1208,28 +1722,46 @@ public class HomeController implements Initializable {
                     alert.setContentText("Not enough stock available. Current stock: " + stockQuantity);
                     alert.showAndWait();
                 } else {
-                    prepare = connect.prepareStatement(sql);
+                    String medicineId = (String)purchase_medID.getSelectionModel().getSelectedItem();
+                    
+                    // Check if medicine already exists in current purchase
+                    prepare = connect.prepareStatement(checkExistingSql);
                     prepare.setInt(1, customerId);
-                    prepare.setString(2, (String)purchase_medID.getSelectionModel().getSelectedItem());
-                    prepare.setString(3, (String)purchase_productName.getSelectionModel().getSelectedItem());
-                    prepare.setString(4, (String)purchase_category.getSelectionModel().getSelectedItem());
-                    prepare.setInt(5, quantity);
-
+                    prepare.setString(2, medicineId);
+                    result = prepare.executeQuery();
+                    
                     String checkData = "SELECT price FROM medicine WHERE medicine_id = '"
-                            +purchase_medID.getSelectionModel().getSelectedItem()+"'";
-
-                    result = statement.executeQuery(checkData);
+                            + medicineId + "'";
+                    statement = connect.createStatement();
+                    ResultSet priceResult = statement.executeQuery(checkData);
                     int priceD = 0;
-                    if(result.next()){
-                        priceD = result.getInt("price");
+                    if(priceResult.next()){
+                        priceD = priceResult.getInt("price");
+                    }
+                    
+                    totalP = priceD * quantity;
+                    
+                    if (result.next()) {
+                        // Medicine already exists, update quantity and price
+                        prepare = connect.prepareStatement(updateSql);
+                        prepare.setInt(1, quantity);
+                        prepare.setInt(2, totalP);
+                        prepare.setInt(3, customerId);
+                        prepare.setString(4, medicineId);
+                        prepare.executeUpdate();
+                    } else {
+                        // New medicine, insert new record
+                        prepare = connect.prepareStatement(sql);
+                        prepare.setInt(1, customerId);
+                        prepare.setString(2, medicineId);
+                        prepare.setString(3, (String)purchase_productName.getSelectionModel().getSelectedItem());
+                        prepare.setString(4, (String)purchase_category.getSelectionModel().getSelectedItem());
+                        prepare.setInt(5, quantity);
+                        prepare.setInt(6, totalP);
+                        prepare.executeUpdate();
                     }
 
-                    totalP = priceD * quantity;
-
-                    prepare.setInt(6, totalP);
-
-                    prepare.executeUpdate();
-
+                    purchaseInProgress = true;
                     purchaseShowListData();
                     totalItems();
                     if (checkDiscount.isSelected()){
@@ -1239,6 +1771,12 @@ public class HomeController implements Initializable {
                         purchase_discount.setText("0 VND");
                     }
                     calculateFinalPrice();
+                    
+                    // Clear selection after adding
+                    purchase_medID.getSelectionModel().clearSelection();
+                    purchase_category.getSelectionModel().clearSelection();
+                    purchase_productName.getSelectionModel().clearSelection();
+                    purchase_quantity.setText("");
                 }
             }
         }catch(Exception e){
@@ -1304,53 +1842,123 @@ public class HomeController implements Initializable {
         try{
             Alert alert;
 
-            if(finalPrice == 0){
+            if(customerId == 0){
                 alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error Message");
                 alert.setHeaderText(null);
-                alert.setContentText("Something wrong :3");
+                alert.setContentText("Please select a customer to create invoice. Customer registration is required.");
                 alert.showAndWait();
-            }else{
-                alert = new Alert(Alert.AlertType.CONFIRMATION);
+                return;
+            }
+            
+            if(!purchaseInProgress || finalPrice == 0){
+                alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error Message");
                 alert.setHeaderText(null);
-                alert.setContentText("Are you sure?");
-                Optional<ButtonType> option = alert.showAndWait();
+                alert.setContentText("No items in cart or invalid total amount");
+                alert.showAndWait();
+                return;
+            }
+            
+            if(staffName.getText().isEmpty()){
+                alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error Message");
+                alert.setHeaderText(null);
+                alert.setContentText("Please enter staff name");
+                alert.showAndWait();
+                return;
+            }
+            
+            alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Confirmation Message");
+            alert.setHeaderText(null);
+            alert.setContentText("Are you sure you want to process this payment?");
+            Optional<ButtonType> option = alert.showAndWait();
 
-                if(option.get().equals(ButtonType.OK)){
-                    prepare = connect.prepareStatement(sql1);
-                    prepare.setInt(1, customerId);
-                    result = prepare.executeQuery();
+            if(option.get().equals(ButtonType.OK)){
+                prepare = connect.prepareStatement(sql1);
+                prepare.setInt(1, customerId);
+                result = prepare.executeQuery();
 
-                    String name = null;
-                    if (result.next()) {
-                        name = result.getString("fullName");
-                    }
-
-                    prepare = connect.prepareStatement(sql);
-                    prepare.setInt(1, customerId);
-                    prepare.setString(2, name);
-
-                    String staffName = this.staffName.getText();
-                    prepare.setString(3, staffName);
-                    prepare.setInt(4, finalPrice);
-
-                    Date date = new Date();
-                    java.sql.Date sqlDate = new java.sql.Date(date.getTime());
-                    prepare.setString(5, String.valueOf(sqlDate));
-
-                    prepare.executeUpdate();
-
-                    alert = new Alert(Alert.AlertType.INFORMATION);
-                    alert.setHeaderText(null);
-                    alert.setContentText("Successful!");
-                    alert.showAndWait();
-
-                    purchaseUpdateQuantity();
-                    transferToLoyaltyPoints();
-                    purchaseReset();
+                String name = null;
+                if (result.next()) {
+                    name = result.getString("fullName");
                 }
+
+                prepare = connect.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                prepare.setInt(1, customerId);
+                prepare.setString(2, name);
+
+                String staffNameText = this.staffName.getText();
+                prepare.setString(3, staffNameText);
+                prepare.setInt(4, finalPrice);
+
+                Date date = new Date();
+                java.sql.Date sqlDate = new java.sql.Date(date.getTime());
+                prepare.setString(5, String.valueOf(sqlDate));
+
+                prepare.executeUpdate();
+
+                // Get the generated history ID
+                ResultSet generatedKeys = prepare.getGeneratedKeys();
+                int historyId = 0;
+                if (generatedKeys.next()) {
+                    historyId = generatedKeys.getInt(1);
+                }
+
+                // Save invoice details
+                saveInvoiceDetails(historyId);
+
+                alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Success");
+                alert.setHeaderText(null);
+                alert.setContentText("Payment processed successfully!");
+                alert.showAndWait();
+
+                purchaseUpdateQuantity();
+                transferToLoyaltyPoints();
+                purchaseReset();
+                purchaseInProgress = false;
             }
 
         }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void saveInvoiceDetails(int historyId) {
+        String sql = "INSERT INTO invoice_detail (history_id, medicine_id, productName, category, quantity, unit_price, total_price) VALUES(?,?,?,?,?,?,?)";
+        
+        // Get unit price for each medicine
+        String getPriceSql = "SELECT price FROM medicine WHERE medicine_id = ?";
+        
+        connect = database.connectDb();
+        
+        try {
+            for (purchaseData purchase : purchaseList) {
+                // Get unit price
+                PreparedStatement priceStmt = connect.prepareStatement(getPriceSql);
+                priceStmt.setString(1, purchase.getMedicine_id());
+                ResultSet priceResult = priceStmt.executeQuery();
+                
+                int unitPrice = 0;
+                if (priceResult.next()) {
+                    unitPrice = priceResult.getInt("price");
+                }
+                
+                // Insert detail record
+                prepare = connect.prepareStatement(sql);
+                prepare.setInt(1, historyId);
+                prepare.setString(2, purchase.getMedicine_id());
+                prepare.setString(3, purchase.getProductName());
+                prepare.setString(4, purchase.getCategory());
+                prepare.setInt(5, purchase.getQuantity());
+                prepare.setInt(6, unitPrice);
+                prepare.setInt(7, purchase.getPrice()); // This is the total price for this item
+                
+                prepare.executeUpdate();
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -1380,7 +1988,7 @@ public class HomeController implements Initializable {
     }
 
     public void purchaseUpdateQuantity() {
-        String sql = "UPDATE medicine SET quantity = quantity - ? WHERE medicine_id = ?";
+        String sql = "UPDATE medicine SET quantity = quantity - ?, status = CASE WHEN (quantity - ?) <= 0 THEN 'Not Available' ELSE 'Available' END WHERE medicine_id = ?";
 
         connect = database.connectDb();
 
@@ -1389,14 +1997,15 @@ public class HomeController implements Initializable {
 
             for (purchaseData purchase : purchaseList) {
                 prepare.setInt(1, purchase.getQuantity());
-                prepare.setString(2, purchase.getMedicine_id());
+                prepare.setInt(2, purchase.getQuantity());
+                prepare.setString(3, purchase.getMedicine_id());
                 prepare.executeUpdate();
             }
 
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Success");
             alert.setHeaderText(null);
-            alert.setContentText("Quantity of drugs updated successfully!");
+            alert.setContentText("Inventory updated successfully!");
             alert.showAndWait();
 
         } catch (Exception e) {
@@ -1405,38 +2014,75 @@ public class HomeController implements Initializable {
     }
 
     public void purchaseReset(){
-        String sql = "DELETE FROM purchase WHERE customer_id = '"+customerId+"'";
-        connect = database.connectDb();
+        if (customerId != 0) {
+            String sql = "DELETE FROM purchase WHERE customer_id = '"+customerId+"'";
+            connect = database.connectDb();
 
-        try {
-            prepare = connect.prepareStatement(sql);
-            int rowsDeleted = prepare.executeUpdate();
+            try {
+                prepare = connect.prepareStatement(sql);
+                int rowsDeleted = prepare.executeUpdate();
 
-            if (rowsDeleted > 0) {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Success");
-                alert.setHeaderText(null);
-                alert.setContentText("Ready for a new bill.");
-                alert.showAndWait();
+                if (rowsDeleted > 0) {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Success");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Ready for a new bill.");
+                    alert.showAndWait();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-
-            // Refresh the UI to reflect the cleared data
-            staffName.setText("");
-            purchase_medID.getSelectionModel().clearSelection();
-            purchase_category.getSelectionModel().clearSelection();
-            purchase_productName.getSelectionModel().clearSelection();
-            purchase_quantity.setText("");
-            purchase_items.setText("0 VND");
-            purchase_discount.setText("0 VND");
-            purchase_total.setText("0 VND");
-            purchaseShowListData();
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+
+        // Reset all form fields
+        staffName.setText("");
+        purchase_medID.getSelectionModel().clearSelection();
+        purchase_category.getSelectionModel().clearSelection();
+        purchase_productName.getSelectionModel().clearSelection();
+        purchase_quantity.setText("");
+        purchase_items.setText("0 VND");
+        purchase_discount.setText("0 VND");
+        purchase_total.setText("0 VND");
+        checkDiscount.setSelected(false);
+        
+        // Reset customer selection
+        customer_tableView1.getSelectionModel().clearSelection();
+        customerId = 0;
+        
+        // Reset purchase state
+        purchaseInProgress = false;
+        totalItems = 0;
+        totalP = 0;
+        discount = 0;
+        finalPrice = 0;
+        
+        // Refresh the UI
+        purchaseShowListData();
     }
 
     @FXML
     void switchForm(ActionEvent event) {
+        // Check if user is switching away from purchase form with pending items
+        if (purchaseInProgress && !purchase_form.isVisible()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Warning");
+            alert.setHeaderText(null);
+            alert.setContentText("You have items in your cart. Switching tabs will clear your current purchase. Continue?");
+            
+            ButtonType continueBtn = new ButtonType("Continue");
+            ButtonType stayBtn = new ButtonType("Stay", ButtonBar.ButtonData.CANCEL_CLOSE);
+            alert.getButtonTypes().setAll(continueBtn, stayBtn);
+            
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.get() == stayBtn) {
+                return; // Don't switch tabs
+            } else {
+                // Clear purchase data if user chooses to continue
+                purchaseReset();
+                purchaseInProgress = false;
+            }
+        }
+        
         if(event.getSource() == dashboard_btn){
             dashboard_form.setVisible(true);
             addMedicines_form.setVisible(false);
@@ -1450,9 +2096,16 @@ public class HomeController implements Initializable {
             customer_btn.setStyle("-fx-background-color: #333856;");
             purchase_btn.setStyle("-fx-background-color: #333856;");
 
+            // Refresh dashboard data including chart with current filter
             homeChart();
             homeTC();
             homeTI();
+            
+            // Refresh chart with current filter selection
+            String currentFilter = revenueFilterComboBox.getValue();
+            if(currentFilter != null){
+                updateRevenueChart(currentFilter, null, null);
+            }
         }
 
         if(event.getSource() == medicines_btn){
@@ -1473,6 +2126,7 @@ public class HomeController implements Initializable {
             addMedicineListStatus();
             addMedicineSearch();
             addMedicineReset();
+            updateButtonStates();
         }
 
         if(event.getSource() == customer_btn){
@@ -1491,6 +2145,7 @@ public class HomeController implements Initializable {
             customerShowListData();
             customerSearch();
             customerReset();
+            updateButtonStates();
         }
 
         if(event.getSource() == purchase_btn){
@@ -1508,7 +2163,6 @@ public class HomeController implements Initializable {
 
             historyShowListData();
             historySearch();
-            purchaseReset();
         }
 
         if(event.getSource() == add_invoice_btn){
@@ -1592,6 +2246,29 @@ public class HomeController implements Initializable {
         }
     }
 
+    public void homeTodaySales() {
+        String sql = "SELECT SUM(total) FROM history WHERE DATE(createdDate) = CURDATE()";
+        
+        connect = database.connectDb();
+        int todaySales = 0;
+        
+        try {
+            prepare = connect.prepareStatement(sql);
+            result = prepare.executeQuery();
+            
+            if (result.next()) {
+                todaySales = result.getInt(1);
+            }
+            
+            if (dashboard_today_sales != null) {
+                dashboard_today_sales.setText(String.format("%,d VND", todaySales));
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         displayUsername();
@@ -1599,6 +2276,17 @@ public class HomeController implements Initializable {
         homeChart();
         homeTC();
         homeTI();
+        homeTodaySales();
+
+        // Initialize revenue filter ComboBox
+        initializeRevenueFilter();
+        
+        // Initialize medicine filter ComboBoxes (with delay to ensure FXML components are loaded)
+        javafx.application.Platform.runLater(() -> {
+            if (filterCategory_comboBox != null && filterStatus_comboBox != null) {
+                initializeMedicineFilters();
+            }
+        });
 
         addMedicineShowListData();
         addMedicineListCategory();
@@ -1620,6 +2308,9 @@ public class HomeController implements Initializable {
         customer_form.setVisible(false);
         history_form.setVisible(false);
         purchase_form.setVisible(false);
+        
+        // Initialize button states
+        updateButtonStates();
 
     }
 }

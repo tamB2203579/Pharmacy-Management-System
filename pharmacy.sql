@@ -47,6 +47,18 @@ create table history(
     createdDate Date not null
 );
 
+create table invoice_detail(
+    id int auto_increment primary key,
+    history_id int not null,
+    medicine_id varchar(100) not null,
+    productName varchar(100) not null,
+    category varchar(100) not null,
+    quantity int not null,
+    unit_price int not null,
+    total_price int not null,
+    foreign key (history_id) references history(id) on delete cascade
+);
+
 select * from Admin;
 select * from Customer;
 select * from medicine;

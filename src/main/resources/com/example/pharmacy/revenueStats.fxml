@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import de.jensd.fx.glyphs.fontawesome.FontAwesomeIcon?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane prefHeight="700.0" prefWidth="1000.0" style="-fx-background-color: white; -fx-border-color: #c85f77; -fx-border-width: 2;" xmlns="http://javafx.com/javafx/23.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.pharmacy.RevenueStatsController">
+   <children>
+      <Label layoutX="20.0" layoutY="20.0" text="Detailed Revenue Analytics" textFill="#c85f77">
+         <font>
+            <Font name="Arial Bold" size="24.0" />
+         </font>
+      </Label>
+      
+      <!-- Period Selection and Date Range -->
+      <Label layoutX="20.0" layoutY="65.0" text="Select Period:" textFill="#333333">
+         <font>
+            <Font name="Arial" size="14.0" />
+         </font>
+      </Label>
+      <ComboBox fx:id="period_selector" layoutX="120.0" layoutY="62.0" onAction="#updateAnalytics" prefHeight="25.0" prefWidth="150.0" promptText="Select Period" />
+      
+      <!-- Date Range Selection -->
+      <Label layoutX="290.0" layoutY="65.0" text="From:" textFill="#333333">
+         <font>
+            <Font name="Arial" size="14.0" />
+         </font>
+      </Label>
+      <DatePicker fx:id="start_date_picker" layoutX="330.0" layoutY="62.0" onAction="#updateAnalytics" prefHeight="25.0" prefWidth="120.0" />
+      
+      <Label layoutX="470.0" layoutY="65.0" text="To:" textFill="#333333">
+         <font>
+            <Font name="Arial" size="14.0" />
+         </font>
+      </Label>
+      <DatePicker fx:id="end_date_picker" layoutX="500.0" layoutY="62.0" onAction="#updateAnalytics" prefHeight="25.0" prefWidth="120.0" />
+      
+      <!-- Chart Type Selection -->
+      <Label layoutX="650.0" layoutY="65.0" text="Chart Type:" textFill="#333333">
+         <font>
+            <Font name="Arial" size="14.0" />
+         </font>
+      </Label>
+      <HBox layoutX="730.0" layoutY="62.0" spacing="10.0">
+         <children>
+            <RadioButton fx:id="line_chart_radio" mnemonicParsing="false" onAction="#toggleChartType" selected="true" text="Line">
+               <toggleGroup>
+                  <ToggleGroup fx:id="chart_type_group" />
+               </toggleGroup>
+            </RadioButton>
+            <RadioButton fx:id="bar_chart_radio" mnemonicParsing="false" onAction="#toggleChartType" text="Column" toggleGroup="$chart_type_group" />
+         </children>
+      </HBox>
+      
+      <!-- Summary Cards -->
+      <AnchorPane layoutX="20.0" layoutY="100.0" prefHeight="80.0" prefWidth="180.0" style="-fx-background-color: #4CAF50; -fx-background-radius: 10;">
+         <children>
+            <Label layoutX="10.0" layoutY="10.0" text="Total Revenue" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="14.0" />
+               </font>
+            </Label>
+            <Label fx:id="total_revenue_label" layoutX="10.0" layoutY="35.0" text="0 VND" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="16.0" />
+               </font>
+            </Label>
+         </children>
+      </AnchorPane>
+      
+      <AnchorPane layoutX="220.0" layoutY="100.0" prefHeight="80.0" prefWidth="180.0" style="-fx-background-color: #2196F3; -fx-background-radius: 10;">
+         <children>
+            <Label layoutX="10.0" layoutY="10.0" text="Average per Period" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="14.0" />
+               </font>
+            </Label>
+            <Label fx:id="average_revenue_label" layoutX="10.0" layoutY="35.0" text="0 VND" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="16.0" />
+               </font>
+            </Label>
+         </children>
+      </AnchorPane>
+      
+      <AnchorPane layoutX="420.0" layoutY="100.0" prefHeight="80.0" prefWidth="180.0" style="-fx-background-color: #FF9800; -fx-background-radius: 10;">
+         <children>
+            <Label layoutX="10.0" layoutY="10.0" text="Best Period" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="14.0" />
+               </font>
+            </Label>
+            <Label fx:id="best_period_label" layoutX="10.0" layoutY="35.0" text="N/A" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="16.0" />
+               </font>
+            </Label>
+         </children>
+      </AnchorPane>
+      
+      <AnchorPane layoutX="620.0" layoutY="100.0" prefHeight="80.0" prefWidth="180.0" style="-fx-background-color: #9C27B0; -fx-background-radius: 10;">
+         <children>
+            <Label layoutX="10.0" layoutY="10.0" text="Growth Rate" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="14.0" />
+               </font>
+            </Label>
+            <Label fx:id="growth_rate_label" layoutX="10.0" layoutY="35.0" text="0%" textFill="WHITE">
+               <font>
+                  <Font name="Arial Bold" size="16.0" />
+               </font>
+            </Label>
+         </children>
+      </AnchorPane>
+      
+      <!-- Revenue Chart -->
+      <Label layoutX="20.0" layoutY="200.0" text="Revenue Chart" textFill="#333333">
+         <font>
+            <Font name="Arial Bold" size="16.0" />
+         </font>
+      </Label>
+      
+      <LineChart fx:id="line_chart" layoutX="20.0" layoutY="230.0" prefHeight="200.0" prefWidth="960.0">
+        <xAxis>
+          <CategoryAxis fx:id="line_x_axis" side="BOTTOM" />
+        </xAxis>
+        <yAxis>
+          <NumberAxis fx:id="line_y_axis" side="LEFT" />
+        </yAxis>
+      </LineChart>
+      
+      <BarChart fx:id="bar_chart" layoutX="20.0" layoutY="230.0" prefHeight="200.0" prefWidth="960.0" visible="false">
+        <xAxis>
+          <CategoryAxis fx:id="bar_x_axis" side="BOTTOM" />
+        </xAxis>
+        <yAxis>
+          <NumberAxis fx:id="bar_y_axis" side="LEFT" />
+        </yAxis>
+      </BarChart>
+      
+      <!-- Revenue Table -->
+      <Label layoutX="20.0" layoutY="450.0" text="Revenue Breakdown" textFill="#333333">
+         <font>
+            <Font name="Arial Bold" size="16.0" />
+         </font>
+      </Label>
+      
+      <TableView fx:id="revenue_table" layoutX="20.0" layoutY="480.0" prefHeight="150.0" prefWidth="960.0" style="-fx-border-color: #ddd; -fx-border-width: 1;">
+        <columns>
+          <TableColumn fx:id="col_period" prefWidth="160.0" text="Period" />
+          <TableColumn fx:id="col_revenue" prefWidth="160.0" text="Revenue" />
+            <TableColumn fx:id="col_transactions" prefWidth="160.0" text="Transactions" />
+            <TableColumn fx:id="col_avg_transaction" prefWidth="160.0" text="Avg Transaction" />
+            <TableColumn fx:id="col_growth" prefWidth="160.0" text="Growth %" />
+            <TableColumn fx:id="col_percentage" prefWidth="160.0" text="% of Total" />
+        </columns>
+      </TableView>
+      
+      <!-- Action Buttons -->
+      <Button fx:id="export_button" layoutX="790.0" layoutY="650.0" mnemonicParsing="false" onAction="#exportData" prefHeight="35.0" prefWidth="90.0" style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;" text="Export CSV">
+         <font>
+            <Font name="Arial" size="12.0" />
+         </font>
+      </Button>
+      
+      <Button fx:id="refresh_button" layoutX="680.0" layoutY="650.0" mnemonicParsing="false" onAction="#updateAnalytics" prefHeight="35.0" prefWidth="90.0" style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;" text="Refresh">
+         <font>
+            <Font name="Arial" size="12.0" />
+         </font>
+      </Button>
+      
+      <Button fx:id="close_button" layoutX="900.0" layoutY="650.0" mnemonicParsing="false" onAction="#closeWindow" prefHeight="35.0" prefWidth="80.0" style="-fx-background-color: #c85f77; -fx-text-fill: white; -fx-font-weight: bold;" text="Close">
+         <font>
+            <Font name="Arial" size="12.0" />
+         </font>
+      </Button>
+   </children>
+</AnchorPane>
