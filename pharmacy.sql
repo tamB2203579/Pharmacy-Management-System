@@ -80,4 +80,94 @@ VALUES
     ('A09', 'Cozaar', 'Losartan', 650, 320, 'Available'),
     ('A10', 'Salbutamol', 'Albuterol', 0, 650, 'Not Available');
 
+
+INSERT INTO Customer (fullName, phoneNum, registrationDate, loyaltyPoints) VALUES
+('Nguyen Van A', '0901234567', '2024-01-15 09:30:00', 150),
+('Tran Thi B', '0902345678', '2024-02-20 14:15:00', 200),
+('Le Van C', '0903456789', '2024-03-10 11:45:00', 100),
+('Pham Thi D', '0904567890', '2024-04-05 16:20:00', 250),
+('Hoang Van E', '0905678901', '2024-05-12 08:10:00', 80),
+('Vo Thi F', '0906789012', '2024-06-18 13:30:00', 180),
+('Dang Van G', '0907890123', '2024-07-22 10:00:00', 120),
+('Bui Thi H', '0908901234', '2024-08-01 15:45:00', 50);
+
+
+-- Recent transactions (within last 7 days - for Weekly stats)
+INSERT INTO history (customer_id, customerName, staffName, total, createdDate) VALUES
+(4, 'Pham Thi D', 'Admin', 105000, '2025-07-27'),
+(5, 'Hoang Van E', 'Admin', 115000, '2025-07-28'),
+(6, 'Vo Thi F', 'Admin', 130000, '2025-07-30'),
+(7, 'Dang Van G', 'Admin', 100000, '2025-08-01'),
+(8, 'Bui Thi H', 'Admin', 150000, '2025-08-02');
+
+-- Monthly transactions (within last 30 days, before current week)
+INSERT INTO history (customer_id, customerName, staffName, total, createdDate) VALUES
+(1, 'Nguyen Van A', 'Admin', 98000, '2025-07-05'),
+(2, 'Tran Thi B', 'Admin', 108000, '2025-07-10'),
+(3, 'Le Van C', 'Admin', 92000, '2025-07-15'),
+(4, 'Pham Thi D', 'Admin', 110000, '2025-07-20'),
+(5, 'Hoang Van E', 'Admin', 102000, '2025-07-22');
+
+-- Older transactions (beyond 30 days but within 365 days - for Yearly stats)
+INSERT INTO history (customer_id, customerName, staffName, total, createdDate) VALUES
+(6, 'Vo Thi F', 'Admin', 95000, '2025-06-10'),
+(7, 'Dang Van G', 'Admin', 88000, '2025-04-25'),
+(8, 'Bui Thi H', 'Admin', 99000, '2025-03-12'),
+(1, 'Nguyen Van A', 'Admin', 100000, '2025-01-28'),
+(2, 'Tran Thi B', 'Admin', 97000, '2024-12-15'),
+(3, 'Le Van C', 'Admin', 105000, '2024-11-02');
+
+-- January 2025
+INSERT INTO history (customer_id, customerName, staffName, total, createdDate) VALUES
+(1, 'Nguyen Van A', 'Admin', 100000, '2025-01-03'),
+(2, 'Tran Thi B', 'Admin', 95000, '2025-01-06'),
+(3, 'Le Van C', 'Admin', 110000, '2025-01-09'),
+(4, 'Pham Thi D', 'Admin', 120000, '2025-01-15'),
+(5, 'Hoang Van E', 'Admin', 90000, '2025-01-21'),
+(6, 'Vo Thi F', 'Admin', 105000, '2025-01-26'),
+
+-- February 2025
+(1, 'Nguyen Van A', 'Admin', 85000, '2025-02-01'),
+(2, 'Tran Thi B', 'Admin', 98000, '2025-02-04'),
+(3, 'Le Van C', 'Admin', 112000, '2025-02-08'),
+(4, 'Pham Thi D', 'Admin', 130000, '2025-02-11'),
+(5, 'Hoang Van E', 'Admin', 95000, '2025-02-19'),
+(6, 'Vo Thi F', 'Admin', 107000, '2025-02-25'),
+
+-- March 2025
+(1, 'Nguyen Van A', 'Admin', 97000, '2025-03-02'),
+(2, 'Tran Thi B', 'Admin', 100000, '2025-03-07'),
+(3, 'Le Van C', 'Admin', 110000, '2025-03-13'),
+(4, 'Pham Thi D', 'Admin', 108000, '2025-03-20'),
+(5, 'Hoang Van E', 'Admin', 115000, '2025-03-26'),
+
+-- April 2025
+(6, 'Vo Thi F', 'Admin', 123000, '2025-04-03'),
+(1, 'Nguyen Van A', 'Admin', 99000, '2025-04-09'),
+(2, 'Tran Thi B', 'Admin', 88000, '2025-04-15'),
+(3, 'Le Van C', 'Admin', 119000, '2025-04-20'),
+(4, 'Pham Thi D', 'Admin', 125000, '2025-04-27'),
+
+-- May 2025
+(5, 'Hoang Van E', 'Admin', 117000, '2025-05-05'),
+(6, 'Vo Thi F', 'Admin', 94000, '2025-05-12'),
+(1, 'Nguyen Van A', 'Admin', 99000, '2025-05-18'),
+(2, 'Tran Thi B', 'Admin', 102000, '2025-05-25'),
+
+-- June 2025
+(3, 'Le Van C', 'Admin', 111000, '2025-06-01'),
+(4, 'Pham Thi D', 'Admin', 93000, '2025-06-10'),
+(5, 'Hoang Van E', 'Admin', 118000, '2025-06-17'),
+(6, 'Vo Thi F', 'Admin', 97000, '2025-06-24'),
+
+-- July 2025
+(1, 'Nguyen Van A', 'Admin', 105000, '2025-07-02'),
+(2, 'Tran Thi B', 'Admin', 99000, '2025-07-08'),
+(3, 'Le Van C', 'Admin', 102000, '2025-07-16'),
+(4, 'Pham Thi D', 'Admin', 120000, '2025-07-22'),
+(5, 'Hoang Van E', 'Admin', 91000, '2025-07-29'),
+
+-- August 2025
+(6, 'Vo Thi F', 'Admin', 113000, '2025-08-01');
+
 SET SQL_SAFE_UPDATES = 0; /*Run this command in MySQL before build and run the application*/
